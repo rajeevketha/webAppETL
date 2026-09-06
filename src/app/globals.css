@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #f3efe6;
-  --paper-2: #eae3d4;
-  --ink: #1b1915;
-  --ink-soft: #5e574c;
-  --forest: #0e5c48;
-  --forest-deep: #083f32;
-  --gold: #c8920f;
-  --clay: #b4532a;
-  --card: #fffcf7;
-  --line: #d8d0c0;
-  --ok: #1f7a4d;
-  --warn: #b45309;
-  --err: #9f1239;
-  --chip: #e7f0ea;
+  --paper: #f5f5f6;
+  --paper-2: #ececee;
+  --ink: #111113;
+  --ink-soft: #6a6a72;
+  --forest: #16161a;
+  --forest-deep: #111113;
+  --gold: #8a6d3b;
+  --clay: #9a3412;
+  --card: #ffffff;
+  --line: #e6e6e9;
+  --ok: #1e4a7a;
+  --warn: #9a6700;
+  --err: #b42318;
+  --chip: #eef1f5;
 }
 
 @theme inline {
@@ -32,9 +32,9 @@
   --color-warn: var(--warn);
   --color-err: var(--err);
   --color-chip: var(--chip);
-  --font-sans: var(--font-plex);
-  --font-mono: var(--font-plex-mono);
-  --font-display: var(--font-serif);
+  --font-sans: var(--font-geist);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-geist);
 }
 
 * {
@@ -49,14 +49,16 @@ body {
 }
 
 body {
-  font-family: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01" on, "cv11" on;
 }
 
 h1,
 h2,
 .display {
-  font-family: var(--font-serif), ui-serif, Georgia, serif;
-  letter-spacing: -0.03em;
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.04em;
+  font-weight: 560;
 }
 
 a {
@@ -71,10 +73,22 @@ textarea {
   font: inherit;
 }
 
+input,
+select,
+textarea {
+  outline: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 3px rgba(22, 22, 26, 0.08);
+}
+
 ::selection {
-  background: #cde5db;
+  background: #dfe3ea;
 }
 
 .mono {
-  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
 }

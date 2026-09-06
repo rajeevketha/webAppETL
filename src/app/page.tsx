@@ -35,18 +35,20 @@ export default function OverviewPage() {
     <div className="space-y-8">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div>
-          <div className="text-xs uppercase tracking-[0.22em] text-forest">Flowline</div>
-          <h1 className="text-4xl mt-1">Move operational data into Salesforce without a spreadsheet round-trip.</h1>
+          <div className="text-[12px] text-ink-soft">Flowline</div>
+          <h1 className="text-[2rem] md:text-[2.35rem] mt-1 leading-[1.15] max-w-2xl">
+            Move operational data into Salesforce without a spreadsheet round-trip.
+          </h1>
           <p className="mt-3 max-w-2xl text-ink-soft leading-6">
             Connect Oracle or another database, map fields, transform values, then insert or upsert into Salesforce objects.
             CSV and Excel land on the same mapping screen.
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <Link href="/import" className="px-4 py-2 rounded-md bg-card border border-line text-sm flex items-center gap-2">
+          <Link href="/import" className="px-3.5 py-2 rounded-lg bg-card border border-line text-sm flex items-center gap-2 hover:bg-paper">
             <Upload size={16} /> Import file
           </Link>
-          <Link href="/pipelines/new" className="px-4 py-2 rounded-md bg-forest text-white text-sm flex items-center gap-2">
+          <Link href="/pipelines/new" className="px-3.5 py-2 rounded-lg bg-forest text-white text-sm flex items-center gap-2 hover:opacity-90">
             New pipeline <ArrowRight size={16} />
           </Link>
         </div>
@@ -61,9 +63,9 @@ export default function OverviewPage() {
           ["Rows loaded", stats?.loaded ?? "—"],
           ["Failed rows", stats?.failed ?? "—"],
         ].map(([label, value]) => (
-          <div key={label} className="bg-card border border-line rounded-xl p-4">
-            <div className="text-xs uppercase tracking-wider text-ink-soft">{label}</div>
-            <div className="font-display text-3xl mt-2">{value}</div>
+          <div key={label} className="bg-card border border-line rounded-2xl p-4 shadow-[0_1px_0_rgba(17,17,19,0.03)]">
+            <div className="text-[11px] text-ink-soft">{label}</div>
+            <div className="text-[1.75rem] tracking-tight mt-1.5">{value}</div>
           </div>
         ))}
       </section>
@@ -94,9 +96,9 @@ export default function OverviewPage() {
             {!pipelines.length && <p className="text-sm text-ink-soft py-6">No pipelines yet.</p>}
           </div>
         </div>
-        <div className="bg-forest-deep text-[#e8f3ee] rounded-xl p-5">
-          <h2 className="text-xl text-white">What this first version covers</h2>
-          <ul className="mt-4 space-y-3 text-sm leading-6 text-[#c5d8cf]">
+        <div className="bg-ink text-[#ececef] rounded-2xl p-5">
+          <h2 className="text-lg text-white tracking-tight">What this version covers</h2>
+          <ul className="mt-4 space-y-3 text-sm leading-6 text-[#b8b8c0]">
             <li>Salesforce connector (username/password or demo org)</li>
             <li>Oracle, Postgres, and MySQL sources, plus CSV/Excel</li>
             <li>Field mapping with auto-map, lookups, and date/number transforms</li>

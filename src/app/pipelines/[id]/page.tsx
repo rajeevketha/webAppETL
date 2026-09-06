@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FieldMappingEditor } from "@/components/FieldMappingEditor";
 import { StatusBadge } from "@/components/StatusBadge";
 import { api } from "@/lib/api";
@@ -27,6 +27,7 @@ export default function PipelineEditorPage() {
   const [job, setJob] = useState<JobRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function loadPreview() {
     const data = await api<{ preview: Preview }>(`/api/pipelines/${params.id}/preview`, { method: "POST" });
@@ -52,13 +53,15 @@ export default function PipelineEditorPage() {
   }, [params.id]);
 
   async function saveMappings(fieldMappings: FieldMapping[]) {
-    if (!pipeline) return;
-    const data = await api<{ pipeline: PipelineRecord }>(`/api/pipelines/${params.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ fieldMappings, status: "ready" }),
-    });
-    setPipeline(data.pipeline);
-    await loadPreview();
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      const data = await api<{ pipeline: PipelineRecord }>(`/api/pipelines/${params.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ fieldMappings, status: "ready" }),
+      });
+      setPipeline(data.pipeline);
+      await loadPreview();
+    }, 350);
   }
 
   async function automap() {

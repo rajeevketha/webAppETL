@@ -25,9 +25,9 @@ npm install
 npm run dev
 ```
 
-Then open [http://localhost:3000](http://localhost:3000) in your browser.
+Then open [http://localhost:3000](http://localhost:3000) in your browser. First compile can take a few seconds; after that it should feel instant.
 
-If you are in the Cursor desktop Agents window with this run attached, use the **Ports** (plug) icon and open the forwarded port **3000**. That maps the VM server to your local browser. The web Agents page has no public URL for the app.
+If you open the app through a Cloud Agent **Ports** forward, every click goes over the remote tunnel and will feel slow. Run `npm run dev` on your own machine for the fast path.
 
 ```bash
 npm test          # transform, automap, and validation unit tests

@@ -3,17 +3,17 @@ export function StatusBadge({ status }: { status: string }) {
     connected: "bg-chip text-ok",
     success: "bg-chip text-ok",
     ready: "bg-chip text-ok",
-    running: "bg-[#f7ead0] text-warn",
-    queued: "bg-[#f7ead0] text-warn",
-    partial: "bg-[#f7ead0] text-warn",
+    running: "bg-[#fff6e5] text-warn",
+    queued: "bg-[#fff6e5] text-warn",
+    partial: "bg-[#fff6e5] text-warn",
     untested: "bg-paper-2 text-ink-soft",
     draft: "bg-paper-2 text-ink-soft",
-    error: "bg-[#f8d7df] text-err",
-    failed: "bg-[#f8d7df] text-err",
+    error: "bg-[#fef3f2] text-err",
+    failed: "bg-[#fef3f2] text-err",
     archived: "bg-paper-2 text-ink-soft",
   };
   return (
-    <span className={`mono text-[11px] uppercase tracking-wider px-2 py-0.5 rounded ${tone[status] || "bg-paper-2"}`}>
+    <span className={`mono text-[10px] uppercase tracking-[0.08em] px-2 py-0.5 rounded-full ${tone[status] || "bg-paper-2"}`}>
       {status}
     </span>
   );
