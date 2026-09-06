@@ -511,9 +511,7 @@ export const store = {
 export function openConnector(record: ConnectorRecord): SystemConnector {
   if (record.type === "salesforce") {
     if (record.environment === "demo") {
-      return createDemoSalesforce((objectName, rows, ids) => {
-        store.saveLoadedRecords(record.id, objectName, rows, ids, "preview");
-      });
+      return createDemoSalesforce(() => undefined);
     }
     return createSalesforceConnector(record);
   }
