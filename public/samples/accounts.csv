@@ -1,0 +1,4 @@
+Name,AccountNumber,Type,Industry,Phone,Website,BillingStreet,BillingCity,BillingState,BillingPostalCode,BillingCountry,AnnualRevenue,NumberOfEmployees,Description,Rating,External_Id__c
+Harbor & Pine Trading,HP-4401,Customer,Retail,617-555-0188,https://harborpine.example,14 Atlantic Ave,Boston,MA,02210,United States,4200000,85,Seasonal importer,Warm,FILE-4401
+Nimbus Clinics,NC-4402,Prospect,Healthcare,303-555-0166,https://nimbus.example,900 16th St,Denver,CO,80202,United States,18800000,240,New region expansion,Hot,FILE-4402
+Quarry Software,QS-4403,Customer,Technology,650-555-0122,https://quarry.example,101 University Ave,Palo Alto,CA,94301,United States,31000000,190,Platform renewal,Hot,FILE-4403
