@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { matchReasonLabel } from "@/components/MappingCoverage";
 import { PreviewTable } from "@/components/PreviewTable";
+import { resolveMatchReason } from "@/lib/etl/automap";
 import { StatusBadge } from "@/components/StatusBadge";
 import { api } from "@/lib/api";
 import type { ValidationIssue } from "@/lib/etl/validate";
@@ -121,7 +122,9 @@ export default function PipelineEditorPage() {
                   <td className="px-4 py-2 mono text-xs">{mapping.sourceField || "—"}</td>
                   <td className="mono text-xs">{mapping.targetField}</td>
                   <td className="text-ink-soft">{mapping.transform.type}</td>
-                  <td className="text-ink-soft">{matchReasonLabel(mapping.matchedBy)}</td>
+                  <td className="text-ink-soft">
+                    {matchReasonLabel(resolveMatchReason(mapping, preview?.sourceFields || [], preview?.target.fields || []))}
+                  </td>
                 </tr>
               ))}
               {pipeline.fieldMappings.length === 0 && (

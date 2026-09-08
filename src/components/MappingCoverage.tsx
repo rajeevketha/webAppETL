@@ -1,3 +1,4 @@
+import { resolveMatchReason } from "@/lib/etl/automap";
 import type { FieldMapping, SchemaField } from "@/lib/types";
 
 const MATCH_LABEL: Record<string, string> = {
@@ -25,7 +26,9 @@ export function MappingCoverage({
   const requiredMissing = targetFields.filter(
     (field) => field.required && field.name !== "Id" && !mappedTargets.has(field.name),
   );
-  const apiMatches = mappings.filter((m) => m.matchedBy === "api").length;
+  const apiMatches = mappings.filter(
+    (m) => resolveMatchReason(m, sourceFields, targetFields) === "api",
+  ).length;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">

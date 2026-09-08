@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { matchReasonLabel } from "@/components/MappingCoverage";
+import { resolveMatchReason } from "@/lib/etl/automap";
 import type { FieldMapping, Row, SchemaField, TransformOp } from "@/lib/types";
 import { id } from "@/lib/ids";
 
@@ -166,7 +167,7 @@ export function FieldMappingEditor({
                   </td>
                   <td className="py-2">
                     <span className="inline-block text-[11px] px-2 py-0.5 rounded-md bg-chip text-ink-soft">
-                      {matchReasonLabel(mapping.matchedBy)}
+                      {matchReasonLabel(resolveMatchReason(mapping, sourceFields, targetFields))}
                     </span>
                   </td>
                   <td className="py-2 pr-3">

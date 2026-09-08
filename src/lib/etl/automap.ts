@@ -135,6 +135,20 @@ export function autoMapFields(sourceFields: SchemaField[], targetFields: SchemaF
   return mappings;
 }
 
+export function resolveMatchReason(
+  mapping: FieldMapping,
+  sourceFields: SchemaField[],
+  targetFields: SchemaField[],
+): MatchReason | undefined {
+  if (mapping.matchedBy) return mapping.matchedBy;
+  if (!mapping.sourceField) return undefined;
+  const source = sourceFields.find((field) => field.name === mapping.sourceField);
+  const target = targetFields.find((field) => field.name === mapping.targetField);
+  if (!source || !target) return undefined;
+  const match = matchSourceToSalesforce(source.name, source.label, target);
+  return match.score >= 60 ? match.reason : "manual";
+}
+
 export function defaultLookupFor(targetField: string): Record<string, string> | null {
   if (targetField === "Type") {
     return { CUST: "Customer", CUSTOMER: "Customer", PARTNER: "Partner", PROSPECT: "Prospect" };
