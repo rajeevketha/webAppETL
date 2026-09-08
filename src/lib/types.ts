@@ -53,12 +53,15 @@ export type TransformOp =
   | { type: "boolean" }
   | { type: "template"; template: string };
 
+export type MatchReason = "api" | "label" | "alias" | "fuzzy" | "manual";
+
 export type FieldMapping = {
   id: string;
   sourceField: string | null;
   targetField: string;
   transform: TransformOp;
   defaultValue?: string;
+  matchedBy?: MatchReason;
 };
 
 export type SchemaField = {

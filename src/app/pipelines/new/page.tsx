@@ -46,7 +46,7 @@ export default function NewPipelinePage() {
           status: "draft",
         }),
       });
-      router.push(`/pipelines/${data.pipeline.id}`);
+      router.push(`/pipelines/${data.pipeline.id}/map`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create pipeline.");
     }
@@ -55,6 +55,7 @@ export default function NewPipelinePage() {
   return (
     <form onSubmit={submit} className="max-w-2xl space-y-5">
       <h1 className="text-3xl">New pipeline</h1>
+      <p className="text-ink-soft">Pick the source and Salesforce object. The next screen maps column headers to that object&apos;s field API names.</p>
       {error && <p className="text-err text-sm">{error}</p>}
       <label className="block">
         <span className="text-xs uppercase tracking-wider text-ink-soft">Name</span>

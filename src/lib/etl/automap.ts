@@ -1,4 +1,4 @@
-import type { FieldMapping, SchemaField, TransformOp } from "@/lib/types";
+import type { FieldMapping, MatchReason, SchemaField, TransformOp } from "@/lib/types";
 import { id } from "@/lib/ids";
 
 function normalize(name: string) {
@@ -39,26 +39,52 @@ const ALIASES: Record<string, string[]> = {
   external_id: ["customerid", "contactid", "oppid", "externalid", "extid"],
 };
 
-function score(source: string, target: string) {
-  const s = normalize(source);
-  const t = normalize(target);
-  if (!s || !t) return 0;
-  if (s === t) return 100;
-  if (s.includes(t) || t.includes(s)) return 80;
+export function matchSourceToSalesforce(
+  sourceName: string,
+  sourceLabel: string,
+  target: SchemaField,
+): { score: number; reason: MatchReason } {
+  const sourceNorm = normalize(sourceName);
+  const sourceLabelNorm = normalize(sourceLabel || sourceName);
+  const apiNorm = normalize(target.name);
+  const labelNorm = normalize(target.label);
+  const dotted = sourceName.split(/[.:]/).pop() || sourceName;
+  const dottedNorm = normalize(dotted);
 
-  const aliases = ALIASES[t] ?? [];
-  if (aliases.includes(s)) return 92;
-
-  const extAliases = ALIASES.external_id;
-  if ((t === "externalid" || target.endsWith("__c")) && extAliases.includes(s) && /id$/i.test(source)) {
-    return 88;
+  if (sourceNorm === apiNorm || sourceLabelNorm === apiNorm || dottedNorm === apiNorm) {
+    return { score: 100, reason: "api" };
+  }
+  if (sourceNorm === labelNorm || sourceLabelNorm === labelNorm) {
+    return { score: 98, reason: "label" };
+  }
+  if (sourceNorm.endsWith(apiNorm) && apiNorm.length >= 4) {
+    return { score: 94, reason: "api" };
   }
 
-  let overlap = 0;
-  const shorter = s.length < t.length ? s : t;
-  const longer = s.length < t.length ? t : s;
-  if (longer.includes(shorter) && shorter.length >= 4) overlap = 60;
-  return overlap;
+  const aliases = ALIASES[apiNorm] ?? [];
+  if (aliases.includes(sourceNorm) || aliases.includes(sourceLabelNorm)) {
+    return { score: 92, reason: "alias" };
+  }
+
+  const extAliases = ALIASES.external_id;
+  if ((apiNorm === "externalid" || target.externalId || target.name.endsWith("__c"))
+    && extAliases.includes(sourceNorm)
+    && /id$/i.test(sourceName)) {
+    return { score: 88, reason: "alias" };
+  }
+
+  if (sourceNorm.includes(apiNorm) || apiNorm.includes(sourceNorm) || sourceNorm.includes(labelNorm)) {
+    if (Math.min(sourceNorm.length, apiNorm.length) >= 4) {
+      return { score: 80, reason: "fuzzy" };
+    }
+  }
+
+  const shorter = sourceNorm.length < apiNorm.length ? sourceNorm : apiNorm;
+  const longer = sourceNorm.length < apiNorm.length ? apiNorm : sourceNorm;
+  if (longer.includes(shorter) && shorter.length >= 4) {
+    return { score: 60, reason: "fuzzy" };
+  }
+  return { score: 0, reason: "fuzzy" };
 }
 
 function suggestedTransform(source: SchemaField, target: SchemaField): TransformOp {
@@ -85,22 +111,25 @@ export function autoMapFields(sourceFields: SchemaField[], targetFields: SchemaF
   const mappings: FieldMapping[] = [];
   const writable = targetFields.filter((field) => field.createable !== false && field.name !== "Id");
 
-  for (const source of sourceFields) {
-    let best: { field: SchemaField; score: number } | null = null;
-    for (const target of writable) {
-      if (usedTargets.has(target.name)) continue;
-      const next = score(source.name, target.name);
-      if (!best || next > best.score) best = { field: target, score: next };
-    }
-    if (best && best.score >= 60) {
-      usedTargets.add(best.field.name);
-      mappings.push({
-        id: id("map"),
-        sourceField: source.name,
-        targetField: best.field.name,
-        transform: suggestedTransform(source, best.field),
-      });
-    }
+  const ranked = sourceFields.flatMap((source) =>
+    writable.map((target) => {
+      const match = matchSourceToSalesforce(source.name, source.label, target);
+      return { source, target, ...match };
+    }),
+  ).sort((a, b) => b.score - a.score);
+
+  for (const item of ranked) {
+    if (item.score < 60) continue;
+    if (usedTargets.has(item.target.name)) continue;
+    if (mappings.some((m) => m.sourceField === item.source.name)) continue;
+    usedTargets.add(item.target.name);
+    mappings.push({
+      id: id("map"),
+      sourceField: item.source.name,
+      targetField: item.target.name,
+      transform: suggestedTransform(item.source, item.target),
+      matchedBy: item.reason,
+    });
   }
 
   return mappings;

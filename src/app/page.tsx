@@ -40,8 +40,8 @@ export default function OverviewPage() {
             Move operational data into Salesforce without a spreadsheet round-trip.
           </h1>
           <p className="mt-3 max-w-2xl text-ink-soft leading-6">
-            Connect Oracle or another database, map fields, transform values, then insert or upsert into Salesforce objects.
-            CSV and Excel land on the same mapping screen.
+            Connect Oracle or another database, map source columns to Salesforce field API names, transform values, then insert or upsert.
+            CSV and Excel open the same dedicated mapping screen.
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -87,8 +87,8 @@ export default function OverviewPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusBadge status={pipe.status} />
-                  <Link href={`/pipelines/${pipe.id}`} className="text-sm text-forest flex items-center gap-1">
-                    <Play size={14} /> Open
+                  <Link href={`/pipelines/${pipe.id}/map`} className="text-sm text-forest flex items-center gap-1">
+                    <Play size={14} /> Map fields
                   </Link>
                 </div>
               </div>
@@ -101,7 +101,7 @@ export default function OverviewPage() {
           <ul className="mt-4 space-y-3 text-sm leading-6 text-[#b8b8c0]">
             <li>Salesforce connector (username/password or demo org)</li>
             <li>Oracle, Postgres, and MySQL sources, plus CSV/Excel</li>
-            <li>Field mapping with auto-map, lookups, and date/number transforms</li>
+            <li>Dedicated field mapping screen: headers → Salesforce API names, plus lookups and transforms</li>
             <li>Insert, update, upsert, dry-run, and row-level errors</li>
           </ul>
         </div>

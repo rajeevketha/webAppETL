@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { FieldMappingEditor } from "@/components/FieldMappingEditor";
+import { useEffect, useState } from "react";
+import { matchReasonLabel } from "@/components/MappingCoverage";
+import { PreviewTable } from "@/components/PreviewTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { api } from "@/lib/api";
 import type { ValidationIssue } from "@/lib/etl/validate";
-import type { FieldMapping, JobRecord, PipelineRecord, Row, SchemaField, SchemaObject } from "@/lib/types";
+import type { JobRecord, PipelineRecord, Row, SchemaField, SchemaObject } from "@/lib/types";
 
 type Preview = {
   sourceLabel: string;
@@ -27,12 +28,6 @@ export default function PipelineEditorPage() {
   const [job, setJob] = useState<JobRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  async function loadPreview() {
-    const data = await api<{ preview: Preview }>(`/api/pipelines/${params.id}/preview`, { method: "POST" });
-    setPreview(data.preview);
-  }
 
   useEffect(() => {
     let cancelled = false;
@@ -51,31 +46,6 @@ export default function PipelineEditorPage() {
       cancelled = true;
     };
   }, [params.id]);
-
-  async function saveMappings(fieldMappings: FieldMapping[]) {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      const data = await api<{ pipeline: PipelineRecord }>(`/api/pipelines/${params.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ fieldMappings, status: "ready" }),
-      });
-      setPipeline(data.pipeline);
-      await loadPreview();
-    }, 350);
-  }
-
-  async function automap() {
-    setBusy("Mapping…");
-    try {
-      const data = await api<{ pipeline: PipelineRecord }>(`/api/pipelines/${params.id}/automap`, { method: "POST" });
-      setPipeline(data.pipeline);
-      await loadPreview();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Auto-map failed.");
-    } finally {
-      setBusy(null);
-    }
-  }
 
   async function run(dryRun = false) {
     setBusy(dryRun ? "Validating…" : "Loading…");
@@ -107,7 +77,9 @@ export default function PipelineEditorPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={pipeline.status} />
-          <button type="button" onClick={automap} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">Auto-map</button>
+          <Link href={`/pipelines/${pipeline.id}/map`} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">
+            Open field mapping
+          </Link>
           <button type="button" onClick={() => run(true)} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">Dry run</button>
           <button type="button" onClick={() => run(false)} className="px-3 py-1.5 text-sm rounded-md bg-forest text-white">
             {busy || "Run load"}
@@ -122,21 +94,49 @@ export default function PipelineEditorPage() {
         <Info label="Source" value={preview?.sourceLabel || pipeline.sourceConfig.table || "—"} />
         <Info label="Salesforce object" value={pipeline.destConfig.object} />
         <Info label="Operation" value={`${pipeline.destConfig.operation}${pipeline.destConfig.externalIdField ? ` · ${pipeline.destConfig.externalIdField}` : ""}`} />
-        <Info label="Batch size" value={String(pipeline.destConfig.batchSize)} />
+        <Info label="Mapped fields" value={String(pipeline.fieldMappings.length)} />
       </div>
 
-      {preview && (
-        <FieldMappingEditor
-          mappings={pipeline.fieldMappings}
-          sourceFields={preview.sourceFields}
-          targetFields={preview.target.fields}
-          sourcePreview={preview.sourceRows}
-          onChange={(next) => {
-            setPipeline({ ...pipeline, fieldMappings: next });
-            void saveMappings(next);
-          }}
-        />
-      )}
+      <div className="bg-card border border-line rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-line flex items-center justify-between">
+          <div>
+            <h2 className="text-lg">Field mapping</h2>
+            <p className="text-sm text-ink-soft">Source columns mapped to Salesforce API names. Open the mapping screen to edit.</p>
+          </div>
+          <Link href={`/pipelines/${pipeline.id}/map`} className="text-sm text-forest">Edit mappings</Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-[11px] uppercase tracking-wider text-ink-soft bg-paper">
+              <tr>
+                <th className="px-4 py-2">Source column</th>
+                <th>Salesforce API name</th>
+                <th>Transform</th>
+                <th>Matched by</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pipeline.fieldMappings.map((mapping) => (
+                <tr key={mapping.id} className="border-t border-line">
+                  <td className="px-4 py-2 mono text-xs">{mapping.sourceField || "—"}</td>
+                  <td className="mono text-xs">{mapping.targetField}</td>
+                  <td className="text-ink-soft">{mapping.transform.type}</td>
+                  <td className="text-ink-soft">{matchReasonLabel(mapping.matchedBy)}</td>
+                </tr>
+              ))}
+              {pipeline.fieldMappings.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-sm text-ink-soft">
+                    No mappings yet.{" "}
+                    <Link href={`/pipelines/${pipeline.id}/map`} className="text-forest">Open field mapping</Link>
+                    {" "}to match columns to Salesforce fields.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {preview && preview.mappingIssues.length > 0 && (
         <div className="border border-line rounded-xl p-4 bg-card">
@@ -153,8 +153,8 @@ export default function PipelineEditorPage() {
 
       {preview && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <TableCard title="Source sample" rows={preview.sourceRows} />
-          <TableCard title="After transform" rows={preview.mappedRows} columns={mappedCols} />
+          <PreviewTable title="Source sample" rows={preview.sourceRows} />
+          <PreviewTable title="After transform" rows={preview.mappedRows} columns={mappedCols} />
         </div>
       )}
     </div>
@@ -166,29 +166,6 @@ function Info({ label, value }: { label: string; value: string }) {
     <div className="bg-card border border-line rounded-xl px-4 py-3">
       <div className="text-[11px] uppercase tracking-wider text-ink-soft">{label}</div>
       <div className="mt-1 font-medium truncate">{value}</div>
-    </div>
-  );
-}
-
-function TableCard({ title, rows, columns }: { title: string; rows: Row[]; columns?: string[] }) {
-  const cols = columns || Object.keys(rows[0] || {});
-  return (
-    <div className="bg-card border border-line rounded-xl p-4 overflow-x-auto">
-      <h2 className="text-lg mb-3">{title}</h2>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="text-left text-ink-soft">
-            {cols.map((col) => <th key={col} className="py-1 pr-3 mono">{col}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.slice(0, 8).map((row, i) => (
-            <tr key={i} className="border-t border-line">
-              {cols.map((col) => <td key={col} className="py-1 pr-3 whitespace-nowrap max-w-[180px] truncate">{String(row[col] ?? "")}</td>)}
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
