@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
+import { isTestJob } from "@/components/TestResultPanel";
 import { api } from "@/lib/api";
 import type { JobRecord } from "@/lib/types";
 
@@ -43,7 +44,7 @@ export default function JobsPage() {
                   <Link href={`/jobs/${job.id}`} className="mono text-xs hover:underline">{job.id}</Link>
                   <div className="text-ink-soft text-xs mt-1">{job.message}</div>
                 </td>
-                <td>{job.message?.startsWith("Test") ? "test" : job.kind.replace("_", " ")}</td>
+                <td>{isTestJob(job) ? "test" : job.kind.replace("_", " ")}</td>
                 <td><StatusBadge status={job.status} /></td>
                 <td>{job.extracted}</td>
                 <td>{job.loaded}</td>

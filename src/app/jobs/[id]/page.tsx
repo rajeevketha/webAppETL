@@ -31,7 +31,7 @@ export default function JobDetailPage() {
         <Link href="/jobs" className="text-sm text-forest">Job runs</Link>
         <h1 className="text-3xl mt-1 font-display">Run {job.id}</h1>
         <p className="text-ink-soft mt-2">{job.message || "No message."}</p>
-        {job.message?.startsWith("Test") && (
+        {isTestJob(job) && (
           <p className="text-sm text-ink-soft mt-1">This was a test. Salesforce was not updated.</p>
         )}
       </div>
