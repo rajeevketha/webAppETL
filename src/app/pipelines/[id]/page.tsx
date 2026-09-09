@@ -5,11 +5,12 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { matchReasonLabel } from "@/components/MappingCoverage";
 import { PreviewTable } from "@/components/PreviewTable";
-import { resolveMatchReason } from "@/lib/etl/automap";
 import { StatusBadge } from "@/components/StatusBadge";
+import { TestResultPanel } from "@/components/TestResultPanel";
+import { resolveMatchReason } from "@/lib/etl/automap";
 import { api } from "@/lib/api";
 import type { ValidationIssue } from "@/lib/etl/validate";
-import type { JobRecord, PipelineRecord, Row, SchemaField, SchemaObject } from "@/lib/types";
+import type { JobErrorRecord, JobRecord, PipelineRecord, Row, SchemaField, SchemaObject } from "@/lib/types";
 
 type Preview = {
   sourceLabel: string;
@@ -27,6 +28,7 @@ export default function PipelineEditorPage() {
   const [pipeline, setPipeline] = useState<PipelineRecord | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [job, setJob] = useState<JobRecord | null>(null);
+  const [testErrors, setTestErrors] = useState<JobErrorRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -48,12 +50,29 @@ export default function PipelineEditorPage() {
     };
   }, [params.id]);
 
-  async function run(dryRun = false) {
-    setBusy(dryRun ? "Validating…" : "Loading…");
+  async function testMapping() {
+    setBusy("Testing…");
+    setError(null);
+    try {
+      const data = await api<{ job: JobRecord; errors: JobErrorRecord[] }>(`/api/pipelines/${params.id}/run`, {
+        method: "POST",
+        body: JSON.stringify({ dryRun: true }),
+      });
+      setJob(data.job);
+      setTestErrors(data.errors || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Test failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function run() {
+    setBusy("Loading…");
     try {
       const data = await api<{ job: JobRecord }>(`/api/pipelines/${params.id}/run`, {
         method: "POST",
-        body: JSON.stringify({ dryRun }),
+        body: JSON.stringify({ dryRun: false }),
       });
       setJob(data.job);
       if (data.job?.id) router.push(`/jobs/${data.job.id}`);
@@ -81,15 +100,20 @@ export default function PipelineEditorPage() {
           <Link href={`/pipelines/${pipeline.id}/map`} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">
             Open field mapping
           </Link>
-          <button type="button" onClick={() => run(true)} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">Dry run</button>
-          <button type="button" onClick={() => run(false)} className="px-3 py-1.5 text-sm rounded-md bg-forest text-white">
-            {busy || "Run load"}
+          <button type="button" onClick={() => void testMapping()} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">
+            {busy === "Testing…" ? "Testing…" : "Test"}
+          </button>
+          <button type="button" onClick={() => void run()} className="px-3 py-1.5 text-sm rounded-md bg-forest text-white">
+            {busy === "Loading…" ? "Loading…" : "Run load"}
           </button>
         </div>
       </div>
 
       {error && <p className="text-err text-sm">{error}</p>}
-      {job && <p className="text-sm">Last job {job.status}: {job.message}</p>}
+      {job && job.message?.startsWith("Test") && (
+        <TestResultPanel job={job} errors={testErrors} object={pipeline.destConfig.object} />
+      )}
+      {job && !job.message?.startsWith("Test") && <p className="text-sm">Last job {job.status}: {job.message}</p>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Info label="Source" value={preview?.sourceLabel || pipeline.sourceConfig.table || "—"} />

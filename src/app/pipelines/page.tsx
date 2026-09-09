@@ -51,8 +51,9 @@ export default function PipelinesPage() {
                 <td>{pipe.destConfig.operation}</td>
                 <td>{pipe.fieldMappings.length}</td>
                 <td><StatusBadge status={pipe.status} /></td>
-                <td className="pr-4 text-right">
+                <td className="pr-4 text-right whitespace-nowrap">
                   <Link href={`/pipelines/${pipe.id}/map`} className="text-sm text-forest">Map fields</Link>
+                  <Link href={`/pipelines/${pipe.id}/map?runTest=1`} className="text-sm text-forest ml-3">Test</Link>
                 </td>
               </tr>
             ))}

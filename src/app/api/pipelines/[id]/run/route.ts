@@ -8,5 +8,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!pipeline) return fail("Pipeline not found.", 404);
   const body = await readJson<{ dryRun?: boolean }>(request).catch(() => ({ dryRun: false }));
   const job = await runPipeline(pipeline, Boolean(body.dryRun));
-  return json({ job });
+  return json({ job, errors: job ? store.listJobErrors(job.id) : [] });
 }

@@ -1,10 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { fieldsFromColumns, parseTabularFile } from "@/lib/connectors/file";
 import { openConnector, store } from "@/lib/db";
+import { formatLoadMessage } from "@/lib/etl/messages";
 import { mapRows } from "@/lib/etl/transform";
-import { validateMappings } from "@/lib/etl/validate";
+import { validateMappings, validateRows } from "@/lib/etl/validate";
 import { nowIso } from "@/lib/ids";
-import type { DestConfig, FieldMapping, PipelineRecord, SourceConfig } from "@/lib/types";
+import type { DestConfig, FieldMapping, JobStatus, PipelineRecord, SourceConfig } from "@/lib/types";
 
 export async function extractSource(sourceConnectorId: string, sourceConfig: SourceConfig) {
   if (sourceConfig.mode === "file" || sourceConfig.uploadId) {
@@ -43,7 +44,6 @@ export async function previewPipeline(pipeline: PipelineRecord, limit = 8) {
     described.fields,
     pipeline.destConfig.operation,
   );
-  const { validateRows } = await import("@/lib/etl/validate");
   const rowIssues = validateRows(mapped, described.fields);
   return {
     sourceLabel: extracted.label,
@@ -93,10 +93,47 @@ export async function runLoad(input: {
       input.destConfig.operation,
     );
     if (mappingIssues.some((issue) => issue.level === "error")) {
-      throw new Error(mappingIssues.find((issue) => issue.level === "error")?.message);
+      const message = mappingIssues.find((issue) => issue.level === "error")?.message || "Mapping is not valid.";
+      store.addJobErrors(
+        mappingIssues.map((issue) => ({
+          jobId: job.id,
+          rowIndex: issue.rowIndex ?? null,
+          message: issue.message,
+          payload: issue.field ? { field: issue.field } : null,
+        })),
+      );
+      return store.updateJob(job.id, {
+        status: "failed",
+        finishedAt: nowIso(),
+        extracted: extracted.rows.length,
+        message: formatLoadMessage({
+          dryRun: Boolean(input.destConfig.dryRun),
+          object: input.destConfig.object,
+          status: "failed",
+          loaded: 0,
+          failed: extracted.rows.length,
+          detail: message,
+        }),
+      });
     }
 
     const result = await destClient.load(input.destConfig.object, mapped, input.destConfig);
+
+    if (input.destConfig.dryRun) {
+      for (const issue of validateRows(mapped, described.fields)) {
+        const exists = result.errors.some((err) => err.rowIndex === issue.rowIndex && err.message === issue.message);
+        if (exists) continue;
+        result.errors.push({
+          rowIndex: issue.rowIndex ?? 0,
+          message: issue.level === "warning" ? `Warning: ${issue.message}` : issue.message,
+          payload: issue.rowIndex != null ? mapped[issue.rowIndex] : undefined,
+        });
+        if (issue.level === "error") {
+          result.failed += 1;
+          result.loaded = Math.max(0, result.loaded - 1);
+        }
+      }
+    }
 
     if (dest.environment === "demo" && dest.type === "salesforce" && !input.destConfig.dryRun) {
       const accepted = mapped.filter((_, index) => !result.errors.some((err) => err.rowIndex === index));
@@ -114,7 +151,7 @@ export async function runLoad(input: {
       );
     }
 
-    const status =
+    const status: JobStatus =
       result.failed === 0 ? "success" : result.loaded > 0 ? "partial" : "failed";
     return store.updateJob(job.id, {
       status,
@@ -123,17 +160,20 @@ export async function runLoad(input: {
       loaded: result.loaded,
       failed: result.failed,
       skipped: result.skipped,
-      message:
-        status === "success"
-          ? `Loaded ${result.loaded} ${input.destConfig.object} records.`
-          : `Loaded ${result.loaded}, failed ${result.failed}.`,
+      message: formatLoadMessage({
+        dryRun: Boolean(input.destConfig.dryRun),
+        object: input.destConfig.object,
+        status,
+        loaded: result.loaded,
+        failed: result.failed,
+      }),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Job failed.";
     return store.updateJob(job.id, {
       status: "failed",
       finishedAt: nowIso(),
-      message,
+      message: input.destConfig.dryRun ? `Test failed: ${message}` : message,
     });
   }
 }

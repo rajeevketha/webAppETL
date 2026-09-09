@@ -7,9 +7,10 @@ import { FieldMappingEditor, addManualMapping } from "@/components/FieldMappingE
 import { MappingCoverage } from "@/components/MappingCoverage";
 import { PreviewTable } from "@/components/PreviewTable";
 import { StatusBadge } from "@/components/StatusBadge";
+import { TestResultPanel } from "@/components/TestResultPanel";
 import { api } from "@/lib/api";
 import type { ValidationIssue } from "@/lib/etl/validate";
-import type { FieldMapping, JobRecord, LoadOperation, PipelineRecord, Row, SchemaField, SchemaObject } from "@/lib/types";
+import type { FieldMapping, JobErrorRecord, JobRecord, LoadOperation, PipelineRecord, Row, SchemaField, SchemaObject } from "@/lib/types";
 
 type Preview = {
   sourceLabel: string;
@@ -31,8 +32,10 @@ export default function PipelineMapPage() {
   const [objects, setObjects] = useState<string[]>(FALLBACK_OBJECTS);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ job: JobRecord; errors: JobErrorRecord[] } | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoTried = useRef(false);
+  const autoTest = useRef(false);
 
   async function loadPreview() {
     const data = await api<{ preview: Preview }>(`/api/pipelines/${params.id}/preview`, { method: "POST" });
@@ -61,6 +64,10 @@ export default function PipelineMapPage() {
           autoTried.current = true;
           await automap();
         }
+        if (!cancelled && !autoTest.current && new URLSearchParams(window.location.search).get("runTest") === "1") {
+          autoTest.current = true;
+          await testMapping(data.pipeline);
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load mapping.");
       }
@@ -71,14 +78,23 @@ export default function PipelineMapPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
+  async function persistMappings(fieldMappings: FieldMapping[]) {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    const data = await api<{ pipeline: PipelineRecord }>(`/api/pipelines/${params.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ fieldMappings, status: "ready" }),
+    });
+    setPipeline(data.pipeline);
+    return data.pipeline;
+  }
+
   async function saveMappings(fieldMappings: FieldMapping[]) {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
-      const data = await api<{ pipeline: PipelineRecord }>(`/api/pipelines/${params.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ fieldMappings, status: "ready" }),
-      });
-      setPipeline(data.pipeline);
+      await persistMappings(fieldMappings);
       await loadPreview();
     }, 350);
   }
@@ -130,12 +146,34 @@ export default function PipelineMapPage() {
     await loadPreview();
   }
 
-  async function run(dryRun = false) {
-    setBusy(dryRun ? "Validating…" : "Loading…");
+  async function testMapping(current = pipeline) {
+    if (!current) return;
+    setBusy("Testing…");
+    setError(null);
     try {
+      await persistMappings(current.fieldMappings);
+      const data = await api<{ job: JobRecord; errors: JobErrorRecord[] }>(`/api/pipelines/${params.id}/run`, {
+        method: "POST",
+        body: JSON.stringify({ dryRun: true }),
+      });
+      setTestResult({ job: data.job, errors: data.errors || [] });
+      await loadPreview();
+      document.getElementById("test-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Test failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function run() {
+    if (!pipeline) return;
+    setBusy("Loading…");
+    try {
+      await persistMappings(pipeline.fieldMappings);
       const data = await api<{ job: JobRecord }>(`/api/pipelines/${params.id}/run`, {
         method: "POST",
-        body: JSON.stringify({ dryRun }),
+        body: JSON.stringify({ dryRun: false }),
       });
       if (data.job?.id) router.push(`/jobs/${data.job.id}`);
     } catch (err) {
@@ -162,7 +200,7 @@ export default function PipelineMapPage() {
           </div>
           <h1 className="text-3xl mt-1">Map columns to {pipeline.destConfig.object}</h1>
           <p className="text-ink-soft mt-2 max-w-2xl">
-            Headers are matched to Salesforce field API names for the selected object. Review the API name on each row before you load.
+            Headers are matched to Salesforce field API names for the selected object. Use Test to validate rows without writing to Salesforce.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -170,14 +208,17 @@ export default function PipelineMapPage() {
           <button type="button" onClick={() => automap()} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">
             Auto-map by API / label
           </button>
-          <button type="button" onClick={() => run(true)} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">Dry run</button>
-          <button type="button" onClick={() => run(false)} className="px-3 py-1.5 text-sm rounded-md bg-forest text-white">
-            {busy || "Run load"}
+          <button type="button" onClick={() => void testMapping()} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">
+            {busy === "Testing…" ? "Testing…" : "Test"}
+          </button>
+          <button type="button" onClick={() => void run()} className="px-3 py-1.5 text-sm rounded-md bg-forest text-white">
+            {busy === "Loading…" ? "Loading…" : "Run load"}
           </button>
         </div>
       </div>
 
       {error && <p className="text-err text-sm">{error}</p>}
+      {testResult && <TestResultPanel job={testResult.job} errors={testResult.errors} object={pipeline.destConfig.object} />}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="bg-card border border-line rounded-xl px-4 py-3">

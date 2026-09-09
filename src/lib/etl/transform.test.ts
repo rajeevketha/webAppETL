@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { applyTransform, mapRow } from "./transform";
 import { autoMapFields } from "./automap";
+import { formatLoadMessage } from "./messages";
 import { validateMappings, validateRows } from "./validate";
 
 describe("transforms", () => {
@@ -85,5 +86,19 @@ describe("validate", () => {
       [{ name: "Email", label: "Email", type: "email" }],
     );
     assert.equal(issues[0]?.message.includes("Invalid email"), true);
+  });
+});
+
+describe("test messages", () => {
+  it("says nothing was written on a successful test", () => {
+    const message = formatLoadMessage({
+      dryRun: true,
+      object: "Account",
+      status: "success",
+      loaded: 12,
+      failed: 0,
+    });
+    assert.match(message, /Test passed/);
+    assert.match(message, /Nothing written to Salesforce/);
   });
 });

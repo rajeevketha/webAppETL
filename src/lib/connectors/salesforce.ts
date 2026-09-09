@@ -242,7 +242,22 @@ class LiveSalesforce implements SystemConnector {
     },
   ): Promise<LoadResult> {
     if (options.dryRun) {
-      return { loaded: rows.length, failed: 0, skipped: 0, errors: [], ids: [] };
+      const object = await this.describe(objectName);
+      const required = object.fields.filter((f) => f.required).map((f) => f.name);
+      const errors: LoadResult["errors"] = [];
+      let loaded = 0;
+      rows.forEach((row, rowIndex) => {
+        const missing = required.find((field) => {
+          const value = row[field];
+          return value === null || value === undefined || String(value).trim() === "";
+        });
+        if (missing) {
+          errors.push({ rowIndex, message: `Missing required field ${missing}`, payload: row });
+          return;
+        }
+        loaded += 1;
+      });
+      return { loaded, failed: errors.length, skipped: 0, errors, ids: [] };
     }
     const session = await this.sessionOrLogin();
     const errors: LoadResult["errors"] = [];

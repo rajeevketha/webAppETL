@@ -90,6 +90,9 @@ export default function OverviewPage() {
                   <Link href={`/pipelines/${pipe.id}/map`} className="text-sm text-forest flex items-center gap-1">
                     <Play size={14} /> Map fields
                   </Link>
+                  <Link href={`/pipelines/${pipe.id}/map?runTest=1`} className="text-sm text-forest">
+                    Test
+                  </Link>
                 </div>
               </div>
             ))}
@@ -101,7 +104,7 @@ export default function OverviewPage() {
           <ul className="mt-4 space-y-3 text-sm leading-6 text-[#b8b8c0]">
             <li>Salesforce connector (username/password or demo org)</li>
             <li>Oracle, Postgres, and MySQL sources, plus CSV/Excel</li>
-            <li>Dedicated field mapping screen: headers → Salesforce API names, plus lookups and transforms</li>
+            <li>Dedicated field mapping screen: headers → Salesforce API names, plus Test without writing to Salesforce</li>
             <li>Insert, update, upsert, dry-run, and row-level errors</li>
           </ul>
         </div>

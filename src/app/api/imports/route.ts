@@ -38,5 +38,5 @@ export async function POST(request: Request) {
     destConfig: { ...body.destConfig, dryRun: body.dryRun },
     fieldMappings: mappings,
   });
-  return json({ job, fieldMappings: mappings });
+  return json({ job, fieldMappings: mappings, errors: job ? store.listJobErrors(job.id) : [] });
 }

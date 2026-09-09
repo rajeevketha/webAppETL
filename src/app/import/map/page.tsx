@@ -6,12 +6,13 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { FieldMappingEditor, addManualMapping } from "@/components/FieldMappingEditor";
 import { MappingCoverage } from "@/components/MappingCoverage";
 import { PreviewTable } from "@/components/PreviewTable";
+import { TestResultPanel } from "@/components/TestResultPanel";
 import { api } from "@/lib/api";
 import { SALESFORCE_OBJECTS } from "@/lib/connectors/demo-data";
 import { autoMapFields } from "@/lib/etl/automap";
 import { mapRow } from "@/lib/etl/transform";
 import { validateMappings } from "@/lib/etl/validate";
-import type { ConnectorRecord, DestConfig, FieldMapping, JobRecord, LoadOperation, Row, SchemaField, UploadRecord } from "@/lib/types";
+import type { ConnectorRecord, DestConfig, FieldMapping, JobErrorRecord, JobRecord, LoadOperation, Row, SchemaField, UploadRecord } from "@/lib/types";
 
 function fieldsFromColumns(columns: string[]): SchemaField[] {
   return columns.map((name) => ({ name, label: name, type: "string" }));
@@ -33,6 +34,7 @@ function ImportMapInner() {
   const [mappings, setMappings] = useState<FieldMapping[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ job: JobRecord; errors: JobErrorRecord[] } | null>(null);
 
   useEffect(() => {
     if (!uploadId) {
@@ -90,7 +92,8 @@ function ImportMapInner() {
 
   async function run(dryRun = false) {
     if (!upload) return;
-    setBusy(dryRun ? "Validating…" : "Loading…");
+    setBusy(dryRun ? "Testing…" : "Loading…");
+    setError(null);
     try {
       const destConfig: DestConfig = {
         object,
@@ -100,7 +103,7 @@ function ImportMapInner() {
         errorPolicy: "collect",
         dryRun,
       };
-      const data = await api<{ job: JobRecord }>("/api/imports", {
+      const data = await api<{ job: JobRecord; errors?: JobErrorRecord[] }>("/api/imports", {
         method: "POST",
         body: JSON.stringify({
           uploadId: upload.id,
@@ -110,6 +113,11 @@ function ImportMapInner() {
           dryRun,
         }),
       });
+      if (dryRun) {
+        setTestResult({ job: data.job, errors: data.errors || [] });
+        document.getElementById("test-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
       if (data.job?.id) router.push(`/jobs/${data.job.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import failed.");
@@ -144,14 +152,17 @@ function ImportMapInner() {
           >
             Auto-map by API / label
           </button>
-          <button type="button" onClick={() => run(true)} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">Dry run</button>
-          <button type="button" onClick={() => run(false)} className="px-3 py-1.5 text-sm rounded-md bg-forest text-white">
-            {busy || "Load to Salesforce"}
+          <button type="button" onClick={() => void run(true)} className="px-3 py-1.5 text-sm border border-line rounded-md bg-card">
+            {busy === "Testing…" ? "Testing…" : "Test"}
+          </button>
+          <button type="button" onClick={() => void run(false)} className="px-3 py-1.5 text-sm rounded-md bg-forest text-white">
+            {busy === "Loading…" ? "Loading…" : "Load to Salesforce"}
           </button>
         </div>
       </div>
 
       {error && <p className="text-err text-sm">{error}</p>}
+      {testResult && <TestResultPanel job={testResult.job} errors={testResult.errors} object={object} />}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="bg-card border border-line rounded-xl px-4 py-3">
